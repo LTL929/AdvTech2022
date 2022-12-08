@@ -166,23 +166,23 @@ UNDC 最大的优势在于, 该方法可以重建非水密的物体, 例如大�
 此部分为必填内容. 如果没有参考任何相关源代码, 请在此明确申明. 如果复现过程中引用参考了任何其他人发布的代码, 请列出所有引用代码并详细描述使用情况. 同时应在此部分突出你自己的工作, 包括创新增量、显著改进或者新功能等, 应该有足够差异和优势来证明你的工作量与技术贡献. 
 本文复现了 NDC 中基于点云的网格重建方法, 其中, 神经网络以及 Dual Contouring 方法的实现方式与 UNDC 类似. 另外, 本文在此基础上, 对 UNDC 方法遇到的重建出的网格法向不一致的问题进行了修复. 
 
-\end{algorithm}
 \subsection{训练数据准备}
 本文以 ABC 数据集为训练数据, 对 UNDC 网络进行了训练. 为了获取训练数据的真值, 本文将随机得到的三维网格样本放置在栅格中, 然后利用经典的 DC 方法来计算栅格角点的符号, 交叉点的位置和梯度, 并以此作为真值, 来对网络进行训练. 
 \subsection{训练损失函数}
 在获取到真值数据之后, UNDC 方法的所有子网络均可以进行单独训练. 下式为顶点计算的损失函数：
 \begin{equation}
-\mathcal{L_V}(\theta)=\mathbb{E}_{(\mathcal{I, M_V, V_{gt}})\sim \mathcal{D}}\Sum_{m,n,k}[\Vert \mathcal{M_V} \odot (f_\mathcal{V}(\mathcal{I,G};\theta)) \Vert ^2_2]
+\mathcal{L_V}(\theta)=\mathbb{E}_{(\mathcal{I, M_V, V}_{gt})\sim \mathcal{D}}\sum _{m,n,k} [ \Vert \mathcal{M_V} \odot (f_{\mathcal{V}}(\mathcal{I,G};\theta)) \Vert ^2_2 ]
 \end{equation}
 
 这里, $\odot$ 为Hadamard 乘积. 对于 UNDC, 我们通过二值交叉熵(Binary Cross Entropy)来监督单元格边的符号, 下式为面预测的损失函数:
 \begin{equation}
-	\mathcal{L_S}(\theta)=\mathbb{E}_{(\mathcal{I, M_S, S_{gt}})\sim \mathcal{D}}\Sum_{m,n,k}[\mathcal{S_V} \odot \mathrm{BCE}(f_\mathcal{S}(\mathcal{I,G};\theta), \mathcal{S}_{gt})]
+\mathcal{L_S}(\theta)=\mathbb{E}_{(\mathcal{I, M_S, S}_{gt})\sim \mathcal{D}}\sum_{m,n,k} \lbrack \mathcal{S_V} \odot \mathrm{BCE}(f_\mathcal{S}(\mathcal{I,G};\theta), \mathcal{S}_{gt}) \rbrack
 \end{equation}
 
 \subsection{实验环境搭建}
 \subsubsection{环境配置}
-\paragraph{环境要求}
+\paragraph{环境要求}~{}
+
 \begin{table}[h]
     \centering
     \newcolumntype{Y}{>{\raggedleft\arraybackslash}X}
@@ -199,14 +199,14 @@ UNDC 最大的优势在于, 该方法可以重建非水密的物体, 例如大�
 \end{table}
 
 
-\paragraph{配置环境}
+\paragraph{配置环境}~{}
 
-\begin{enumerate}[i]
+\begin{itemize}
 	\item 首先在 Ubuntu 系统上安装 docker;
 	\item 在容器中安装Anaconda, 并创建虚拟环境;
 	\item 安装Pytorch 以及必要的 Python 包；
 	\item Build Cython 文件;
-\end{enumerate}
+\end{itemize}
 
 \subsection{界面分析与使用说明}
 
@@ -216,18 +216,21 @@ UNDC 最大的优势在于, 该方法可以重建非水密的物体, 例如大�
 
 
 
-\paragraph{模型训练}
+\paragraph{模型训练}~{}
+
 训练单元格棱符号预测模型
 \lstset{language=bash}
 \begin{lstlisting}
 python main.py --train_bool --input_type pointcloud --method undc --epoch 250 --lr_half_life 100 --data_dir ./groundtruth/gt_UNDC --checkpoint_save_frequency 10 --point_num 4096 --grid_size 64 
 \end{lstlisting}
+
 训练单元格内顶点位置预测模型
 \lstset{language=bash}
 \begin{lstlisting}
 python main.py --train_float --input_type pointcloud --method undc --epoch 250 --lr_half_life 100 --data_dir ./groundtruth/gt_UNDC --checkpoint_save_frequency 10 --point_num 4096 --grid_size 64
 \end{lstlisting}
-\paragraph{模型测试}
+\paragraph{模型测试}~{}
+
 \lstset{language=bash}
 \begin{lstlisting}
 python main.py --test_bool_float --input_type udf --method undc --data_dir ./groundtruth/gt_UNDC
