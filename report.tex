@@ -1,0 +1,234 @@
+\input{Style/style}
+\usepackage[algo2e]{algorithm2e}
+\usepackage{tabularx}
+\usepackage{graphicx}
+\begin{document}
+\title{课程论文题目}
+\author{Neural Dual Contouring}
+
+\input{Content/titlepage.tex} 
+\maketitle
+
+\begin{abstract}
+ 	本文复现的论文提出了一种基于数据驱动的物体表面重建方法, Neural Dual Contouring(NDC). 与传统的 Dual Contouring 方法不同的是, NDC 不需要人为设计复杂的函数来计算物体表面的梯度信息, 而是直接采用神经网络来预测栅格中顶点的位置以及棱的符号. 该方法允许多种类型的数据作为输入, 包括有符号距离场(Signed Distance Field, SDF)、无符号距离场(Unsigned Distance Field, UDF)、二值体素、无向点云. 另外, 该方法可以生成非水密的物体表面. 当输入数据为无向点云时, 该方法重建的面片往往无法区分内外, 本文在该方法的基础上, 利用点云的法向量信息, 对重建的面片方向进行了矫正, 从实验结果来看, 重建的面片方向保持了一致性. 
+ 	\\\\
+ 	\textbf{关键词：}表面重建; 点云重建, 机器学习
+\end{abstract}
+
+\section{引言}
+
+随着我国城镇化的发展, 城市规模不断地扩大, 城市化在给人们带来生活便利的同时, 也带来了交通拥堵, 事故频发等问题. 近年来提出的“智慧城市”理念为解决上述问题提供了思路. 城市的三维场景数据为智慧城市提供了完整的三维空间信息. 如何真实、完整、高精度地重建出大规模的三维城市场景成为了“智慧城市”的重要基础. 
+
+目前. 针对规模场景的三维化, 在数字测绘和计算机图形学领域, 出现了许多三维数据获取技术, 包括无人机低空航拍, 激光雷达扫描等. 其中激光雷达扫描的点云数据具有精度高、扫描速度快等特点, 但同时也存在点云分布不均匀, 部分点云残缺等问题. \\
+本次课程的论文复现工作拟通过对点云进行处理, 采用深度学习的技术, 来重建现实生活中的三维场景, 提高三维场景重建的精度和完整性, 研究真实世界低成本数字化的可行性. 
+
+与基于Marching Cube [1]的重建方法相比, NDC 方法能够重建更加有棱角的网格, 能够更好地保留建筑物的特征, 适合大规模室外建筑物的重建. 
+
+\section{相关工作}
+此部分对课题内容相关的工作进行简要的分类概括与描述, 二级标题中的内容为示意, 可按照行文内容进行增删与更改, 若二级标题无法对描述内容进行概括, 可自行增加三级标题, 后面内容同样如此, 引文的bib文件统一粘贴到Ref文件夹下的Collection.bib中并采用如下引用方式\cite{Runge}. 
+
+\subsection{基于点云的网格重建}
+从离散的点云中重建出多边形的网格一直是计算机图形学中最经典, 也是研究最深入地问题之一. Berger 等人[3]对以往的网格重建工作按照不同的先验进行了分类, 包括平滑度、可见性、密集采样、基元以及数据先验. 在基于数据先验的方法中, 有一些工作是从数据中学习隐含的先验知识, 包括学习整个物体的先验[4]以及学习 patches 的先验[5]. 本文复现的 NDC 工作属于学习patch先验的方法. 
+
+除此之外, 根据输入点云有无法向量, 可以将表面重建方法分为有向点云表面重建[6]和无向点云表面重建[7]. Peng 等人[8]设计了一种基于卷积的 Occupancy 神经网络, 该网络基于 UNet [9]结构, 可以学习样本数据中的全局特征, 从而可以较好地完成补全重建任务. 另外, 该方法输入的点云不需要法向量, 因此对于输入数据的适用性较高. 本文复现的 UNDC 方法同样可以从无向的输入点云中, 重建出非水密物体的表面. 并且, 通过在训练中对数据进行噪声增强, 使得该方法可以有效地应对采样分布不均匀以及噪声干扰等情况. 
+
+\subsection{Dual Contouring}
+Ju 等人[10]提出了 Dual Contouring 方法, 该方法可以将有符号距离场$\Phi:\mathbb{R}^3\rightarrow \mathbb{R}$ 映射到多边形的网格$\mathcal{M=(V,F)}$, 如图1所示. 该方法是通过将函数在$\mathcal{G=(X,E)}$中离散化实现的. 首先, 该方法在栅格角点上对距离场$\Phi$进行采样, 得到每个角点的符号值; 然后, 对于两端符号相异的边 $\mathcal{V}^3$, 找到距离场$\Phi$在该边上值为 0 的位置, 即交叉点; 接着, 通过QEM 方法计算这些交叉点的法向; 最后, 根据上述信息生成四边形面. Dual Contouring 可以用以下式子来表示：\\
+% $\begin{array}{*{2}{c}rr}
+% a & b & b & b\\
+% c & d & d & d\\
+% e & f & e & e\\
+% \end{array}$
+
+% \begin{table}[h]
+%     \centering
+%     \newcolumntype{Y}{>{\raggedleft\arraybackslash}X}
+%     \begin{tabularx}{\textwidth}{c c Y Y}
+%         $\mathcal{S}\in \mathbb{B}^{|\mathcal{X}|}$ & $\mathcal{S}=f_{\mathcal{S}}(\Phi,\mathcal{G})$ & (grid signs) & (1)\\
+%         $\mathcal{V}^\mathcal{E}\in\mathbb{R}^{|\mathcal{E}|\times 3}$ & $\mathcal{V}^\mathcal{E}=f_{\mathcal{V}^\mathcal{E}}(\Phi,\mathcal{G})$ & (edge vertices) & (2)\\
+%         $\mathcal{N}^\mathcal{E}\in \mathbb{R}^{|\mathcal{E}|\times 3}$ & $\mathcal{N}^\mathcal{E}= f_{\mathcal{N}^\mathcal{E}}(\Phi,\mathcal{G})$ & (edge normals) & (3)\\
+%     \end{tabularx}
+%     % \caption{Caption}
+%     % \label{tab:my_label}
+% \end{table}
+
+% \begin{table}[!ht]
+% \begin{tabular*}{\hsize}{@{}@{\extracolsep{\fill}}ccrr@{}}
+% $\mathcal{S}\in \mathbb{B}^{|\mathcal{X}|}$, & $\mathcal{S}=f_{\mathcal{S}}(\Phi,\mathcal{G})$, & (grid signs) & (1)\\
+% $\mathcal{V}^\mathcal{E}\in\mathbb{R}^{|\mathcal{E}|\times 3}$, & $\mathcal{V}^\mathcal{E}=f_{\mathcal{V}^\mathcal{E}}(\Phi,\mathcal{G})$, & (edge vertices) & (2)\\
+% $\mathcal{N}^\mathcal{E}\in \mathbb{R}^{|\mathcal{E}|\times 3}$, & $\mathcal{N}^\mathcal{E}= f_{\mathcal{N}^\mathcal{E}}(\Phi,\mathcal{G})$, & (edge normals) & (3)\\
+% \end{tabular*}
+% \end{table}
+
+% 如何更改字体大小, 这字体也太大了吧
+% \resizebox{\linewidth}{!}{
+% \begin{tabular}{ccrr}
+% $\mathcal{S}\in \mathbb{B}^{|\mathcal{X}|}$, & $\mathcal{S}=f_{\mathcal{S}}(\Phi,\mathcal{G})$, & (grid signs) & (1)\\
+% $\mathcal{V}^\mathcal{E}\in\mathbb{R}^{|\mathcal{E}|\times 3}$, & $\mathcal{V}^\mathcal{E}=f_{\mathcal{V}^\mathcal{E}}(\Phi,\mathcal{G})$, & (edge vertices) & (2)\\
+% $\mathcal{N}^\mathcal{E}\in \mathbb{R}^{|\mathcal{E}|\times 3}$, & $\mathcal{N}^\mathcal{E}= f_{\mathcal{N}^\mathcal{E}}(\Phi,\mathcal{G})$, & (edge normals) & (3)\\
+% \end{tabular}
+% }
+
+\begin{align}\label{a}
+\mathcal{S}\in \mathbb{B}^{|\mathcal{X}|},  \mathcal{S}=f_{\mathcal{S}}(\Phi,\mathcal{G}),  (grid \quad signs) \\
+\mathcal{V}^\mathcal{E}\in\mathbb{R}^{|\mathcal{E}|\times 3}, \mathcal{V}^\mathcal{E}=f_{\mathcal{V}^\mathcal{E}}(\Phi,\mathcal{G}), (edge\quad vertices)\\
+\mathcal{N}^\mathcal{E}\in\mathbb{R}^{|\mathcal{E}|\times 3},
+\mathcal{N}^\mathcal{E}=f_{\mathcal{N}^\mathcal{E}}(\Phi,\mathcal{G}), (edge\quad normals)
+\end{align}
+
+% \begin{center}
+% \setlength{\tabcolsep}{7mm}{
+% \begin{tabular}{c c r r}
+%         $\mathcal{S}\in \mathbb{B}^{|\mathcal{X}|}$ & $\mathcal{S}=f_{\mathcal{S}}(\Phi,\mathcal{G})$ & b & b\\
+%         c & d & d & d\\
+%         e & f & e & e\\
+% \end{tabular}}
+% \end{center}
+
+其中, $\mathcal{S}$ 为栅格中角点在距离场 $\Phi$ 中的符号值, $ f_{mathcal{S}}: sign(\Phi(\mathcal{X}))$; $f_(\mathcal{V}^\mathcal{E})$ 用于计算距离场 在栅格边上值为 0 的交叉点位置; $f_\mathcal{N^E}:\nabla \Phi(\mathcal{V^E})$  为交叉点位置的梯度. 而四边形面和对应的顶点可以用下式来表示：
+% 插入一个表格
+\begin{align}
+    \mathcal{F}\in \mathbb{B}^{|\mathcal{E}|} \quad \mathcal{F}=f_{\mathcal{F}}(\mathcal{S}) \\
+    \mathcal{V} \in \mathbb{R}^{|\mathcal{X}| \times 3} \quad \mathcal{V}=f_{\mathcal{V}}(\mathcal{V}^{\mathcal{E}}, \mathcal{N}^{\mathcal{E}})
+\end{align}
+另外, 只有当单元格边的符号发生变化时, 才会生成四边形边：
+\begin{equation}
+    f_{\mathcal{F}}:xor(\mathcal{S}_i, \mathcal{S}_j), \quad (i, j)\in \mathcal{E}
+\end{equation}
+
+
+
+
+\section{本文方法}
+
+\subsection{Dual Contouring}
+本文复现的 NDC 方法, 可以通过简单的方式实现锐利的特征. 该方法基于符号预测来重建物体的面片, 可以用以下公式来表示：
+\begin{equation}
+\mathrm{NDC}(\mathcal{I}) =
+\begin{cases}
+\mathcal{S} = f_{\mathcal{S}}(\mathcal{I,G};\theta) \\
+\mathcal{V} = f_{\mathcal{V}}(\mathcal{I,G};\theta) \\
+\mathcal{F} = \mathrm{xor}(\mathcal{S}_i, \mathcal{S}_j) \\
+\end{cases}
+\end{equation}
+其中用于控制是否生成面片的逻辑变量与经典的 DC 相同. 在给定输入量 I之后, 该方法可以通过神经网络参数 $\theta$ 来预测栅格 $\mathcal{G}$ 中顶点的位置和角点的符号. 
+该方法的另外一个变体为 UNDC, 其中 U 表示 unsigned(无符号). 与 NDC 不同的是, UNDC 直接预测是否生成面片, 而不用去预测角点的符号值：
+\begin{equation}
+\mathrm{UNDC}(\mathcal{I}) =
+\begin{cases}
+\mathcal{V} = f_{\mathcal{V}}(\mathcal{I,G};\theta) \\
+\mathcal{F} = f_{\mathcal{F}}(\mathcal{I,G};\theta) \\
+\end{cases}
+\end{equation}
+UNDC 最大的优势在于, 该方法可以重建非水密的物体, 例如大规模的建筑场景. 同时, 该方法还可以以薄片的形式重建出网格面. 
+
+\begin{figure}[H]
+	\center
+	\includegraphics*[width=15cm]{Figure/overview.png}
+	\centering
+	\caption{方法示意图}\label{fig:fig1}
+\end{figure}
+
+\subsection{编码器}
+以点云作为输入对象, 该网络的编码器可以分为两个部分：点云处理模块、栅格处理模块. 前者是基于 PointNet++ 实现的, 后者是通过三层 3x3x3 的卷积层以及三层 1x1x1 的卷积层实现的. 该方法的网络结构图如图2所示. 
+
+\subsection{大场景重建方法}
+对于大规模的场景, 本文采用的重建方法是：首先, 对大场景进行区域分割, 得到多个小区域; 然后, 针对每一个小区域, 使用UNDC 的方法对其进行重建. 以L7建筑为例, 其区域划分方式如图3所示, 由于 L7 建筑相对于坐标系呈倾斜分布, 因此, 切分的区域往往与建筑物自身不平行. 
+
+\subsection{网格法向重定向}
+如图4所示, 由于输入的点云为无向点云, 因此 UNDC 方法重建的网格无法区分物体的内外, 导致面片的法向量出现错误. 
+
+由于 UDC 无法区分场景的内外, 因此该方法在生成 mesh 的时候需要提前指定面片的正方向, 以图5为例：假设朝“右”和朝“上”为正向, 为了重建出如图5 (a) 所示的紫色的真实线段, UDC 方法首先判断所有竖向的单元格边是否被切割, 并使用线段将被切割的单元格边两侧的单元格连接起来, 如图5(b) 所示; 由于前面假设了“右”为正向, 因此, 这些线段的右侧为正向; 然后用同样的方式去判断所有的横线, 得到的结果如图5 (c) 所示, 又因为前面假设了“上”为正向, 因此, 这些线段的上侧为正向; 最后将图5 (b) 和图5 (c) 拼接起来, 得到最后的重建结果如图5 (d) 所示; 反映到真实的三维场景中即为面片明暗相间交替出现. 
+
+为了对网格的法向量进行重新定向, 我们根据激光雷达在点云采集过程中得到的法向量, 利用k-d tree 方法对所有面片的法向量进行了矫正, 重定向结果见5.3节. 
+
+\subsection{后处理}
+如图6所示, 当 UNDC 在处理稀疏或者带有噪声的点云时, 用于预测单元格边是否被交叉的函数可能会出现错误, 导致在输出网格的时候产生一些小空洞, 因此需要采取一些后处理方法来进行弥补. 本文首先检测出周围存在四条边同时自身处于未被交叉状态的单元格边, 接着将其交叉状态修改为正, 然后对该区域进行重新网格化. 
+
+
+
+\section{复现细节}
+
+\subsection{与已有开源代码对比}
+此部分为必填内容. 如果没有参考任何相关源代码, 请在此明确申明. 如果复现过程中引用参考了任何其他人发布的代码, 请列出所有引用代码并详细描述使用情况. 同时应在此部分突出你自己的工作, 包括创新增量、显著改进或者新功能等, 应该有足够差异和优势来证明你的工作量与技术贡献. 
+本文复现了 NDC 中基于点云的网格重建方法, 其中, 神经网络以及 Dual Contouring 方法的实现方式与 UNDC 类似. 另外, 本文在此基础上, 对 UNDC 方法遇到的重建出的网格法向不一致的问题进行了修复. 
+
+如需伪代码, 采用如下的写作方式进行描述
+
+\begin{algorithm}[H]
+\caption{Spatial-Temporal Texture Transformer Network for Video Inpainting.}
+\KwIn{\rm video \ \it X,\ \rm hole \ \it H,\ \rm validity \ \it V \\}
+\KwOut{\rm complection \ video \it Y \\ }
+\For{\ l \ \textbf{in} \ reference \ frame \ indices \  }{
+$\qquad  v_{l}\ =\rm FFM(\it X_{l},\it H_{l}\rm) $
+$\qquad  v_{l}\ =\rm Encoder(\it X_{l} \rm) $
+$\qquad  k_{l}\ =\rm Encoder(\rm FFM(\it X_{l},\it H_{l} \rm),\it V_{l} \rm)$
+}
+\For{\ i \ \textbf{in} \ target \ frame \ indices \  }{
+$\qquad  q_{i}\ =\rm Encoder(\rm FFM(\it X_{i},\it H_{i} \rm),\it V_{i} \rm) $
+$\qquad  P,W \ = \rm RE(\it q_{i}, \it k_{l} \rm) $
+$\qquad  T \ = \rm CLFT(\it P, \it v_{l} \rm) $
+$\qquad  F \ = \rm DNN(\rm FFM(\it x_{i}\rm) \rm) $
+$\qquad  F_{out} \ = F \ + \ \rm Conv(\rm Concat(\it T, \it F \rm) \rm)\odot W $
+$\qquad  Y_{i} \ = \rm Decoder(\it F_{out} \rm) $
+}
+
+\end{algorithm}
+\subsection{训练数据准备}
+本文以 ABC 数据集为训练数据, 对 UNDC 网络进行了训练. 为了获取训练数据的真值, 本文将随机得到的三维网格样本放置在栅格中, 然后利用经典的 DC 方法来计算栅格角点的符号, 交叉点的位置和梯度, 并以此作为真值, 来对网络进行训练. 
+\subsection{训练损失函数}
+在获取到真值数据之后, UNDC 方法的所有子网络均可以进行单独训练. 下式为顶点计算的损失函数：
+\
+
+L_V (θ)=E_((I,M_V,V_gt)~D) ∑_(m,n,k)▒〖[〖∥M_V⊙(f_V (Ι,G; θ)-V_gt)∥〗_2^2 〗
+这里, ⊙ 为Hadamard 乘积. 对于 UNDC, 我们通过二值交叉熵(Binary Cross Entropy)来监督单元格边的符号, 下式为面预测的损失函数:
+L_F (θ)=E_((I,M_F,F_gt)~D) ∑_(m,n,k)▒〖[〖∥M_F⊙(f_F (Ι,G; θ)-F_gt)∥〗_2^2 〗
+
+\subsection{实验环境搭建}
+\subsubsection{环境配置}
+\paragraph{环境要求}
+\paragraph{配置环境}
+\paragraph{项目文件结构}
+
+\subsection{界面分析与使用说明}
+\paragraph{模型训练}
+\paragraph{模型测试}
+\paragraph{重建结果展示}
+
+\begin{figure}[H]
+	\center
+	\includegraphics*[width=16cm]{Figure/experiment.png}
+	\centering
+	\caption{操作界面示意}\label{fig:fig2}
+\end{figure}
+
+\subsection{创新点}
+虽然 UNDC 方法可以基于离散点云重建出非水密的面片, 但是由于输入的点云本身无法向信息, 因此重建的面片的方法往往存在异常. 为了解决这个问题, 本文在 UNDC 的基础上, 对原方法进行了完善. 本文基于点云的法向量和 kd-tree, 对所有面片的法向进行了纠正, 从而保证重建的物体表面的法向保持一致性. 
+\section{实验结果分析}
+\subsection{数据集}
+本文在 ABC 数据集上对UNDC 网络进行了训练. ABC 数据集中包含了丰富的CAD模型, 并且这些模型具有锐利的边缘特征以及光滑的曲面特征. 本文将数据集中分为训练集(80\%, 4280个样本)和测试集(20\%, 1071个样本), 并以L7楼点云数据为样本进行了测试. 
+\subsection{基于点云的表面重建}
+本文与另外两种大场景点云重建方法进行了对比, 包括迭代泊松重建[11]、ConvONet. 本文以 L7 楼点云作为输入数据, 对比结果如图7所示. 
+
+iPSR 虽然可以用于处理无向点云的重建, 但是该方法重建的结果会出现许多的凸包; ConvONet 重建的结果同样出现了许多不必要的凸包; 而UNDC 重建的结果结构清晰, 无冗余的凸包情况出现. 
+\subsection{网格法向重定向}
+由于UNDC重建的网格无法区分内外, 因此本文利用激光雷达在扫描过程中获得的点云法向量对UNDC重建的结果进行了重定向, 结果如图8所示. 从图8中可以看出, 重定向之后的网格法向保持了连续性. 
+
+
+\subsection{后处理}
+在预测单元格是否被切割时, 默认的阈值为0.3/1.0, 其重建结果如图9(c)所示; 当将该参数调整为 0.1 时, 重建的结果如图9(a)所示, 重建的网格出现了大片的空洞. 然而, 当把后处理操作取消之后, 重建的结果有和默认参数相似, 如图9(b)所示. 因此本文的后处理方法对于重建的影响似乎和论文中的描述不相符, 需要继续研究下去. 
+
+
+\begin{figure}[H]
+	\center
+	\includegraphics*[width=16cm]{Figure/result.png}
+	\centering
+	\caption{实验结果示意}\label{fig:fig3}
+\end{figure}
+
+\section{总结与展望}
+本部分对整个文档的内容进行归纳并分析目前实现过程中的不足以及未来可进一步进行研究的方向. 
+
+
+\printbibliography%[heading=bibliography,title=参考文献]
+\end{document}
