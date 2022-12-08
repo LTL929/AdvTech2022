@@ -2,6 +2,19 @@
 \usepackage[algo2e]{algorithm2e}
 \usepackage{tabularx}
 \usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+\lstset{
+    numbers=left, 
+    numberstyle= \tiny, 
+    keywordstyle= \color{ blue!70},
+    commentstyle= \color{red!50!green!50!blue!50}, 
+    frame=shadowbox, % 阴影效果
+    rulesepcolor= \color{ red!20!green!20!blue!20} ,
+    escapeinside=``, % 英文分号中可写入中文
+    xleftmargin=2em,xrightmargin=2em, aboveskip=1em,
+    framexleftmargin=2em
+} 
 \begin{document}
 \title{课程论文题目}
 \author{Neural Dual Contouring}
@@ -153,46 +166,72 @@ UNDC 最大的优势在于, 该方法可以重建非水密的物体, 例如大�
 此部分为必填内容. 如果没有参考任何相关源代码, 请在此明确申明. 如果复现过程中引用参考了任何其他人发布的代码, 请列出所有引用代码并详细描述使用情况. 同时应在此部分突出你自己的工作, 包括创新增量、显著改进或者新功能等, 应该有足够差异和优势来证明你的工作量与技术贡献. 
 本文复现了 NDC 中基于点云的网格重建方法, 其中, 神经网络以及 Dual Contouring 方法的实现方式与 UNDC 类似. 另外, 本文在此基础上, 对 UNDC 方法遇到的重建出的网格法向不一致的问题进行了修复. 
 
-如需伪代码, 采用如下的写作方式进行描述
-
-\begin{algorithm}[H]
-\caption{Spatial-Temporal Texture Transformer Network for Video Inpainting.}
-\KwIn{\rm video \ \it X,\ \rm hole \ \it H,\ \rm validity \ \it V \\}
-\KwOut{\rm complection \ video \it Y \\ }
-\For{\ l \ \textbf{in} \ reference \ frame \ indices \  }{
-$\qquad  v_{l}\ =\rm FFM(\it X_{l},\it H_{l}\rm) $
-$\qquad  v_{l}\ =\rm Encoder(\it X_{l} \rm) $
-$\qquad  k_{l}\ =\rm Encoder(\rm FFM(\it X_{l},\it H_{l} \rm),\it V_{l} \rm)$
-}
-\For{\ i \ \textbf{in} \ target \ frame \ indices \  }{
-$\qquad  q_{i}\ =\rm Encoder(\rm FFM(\it X_{i},\it H_{i} \rm),\it V_{i} \rm) $
-$\qquad  P,W \ = \rm RE(\it q_{i}, \it k_{l} \rm) $
-$\qquad  T \ = \rm CLFT(\it P, \it v_{l} \rm) $
-$\qquad  F \ = \rm DNN(\rm FFM(\it x_{i}\rm) \rm) $
-$\qquad  F_{out} \ = F \ + \ \rm Conv(\rm Concat(\it T, \it F \rm) \rm)\odot W $
-$\qquad  Y_{i} \ = \rm Decoder(\it F_{out} \rm) $
-}
-
 \end{algorithm}
 \subsection{训练数据准备}
 本文以 ABC 数据集为训练数据, 对 UNDC 网络进行了训练. 为了获取训练数据的真值, 本文将随机得到的三维网格样本放置在栅格中, 然后利用经典的 DC 方法来计算栅格角点的符号, 交叉点的位置和梯度, 并以此作为真值, 来对网络进行训练. 
 \subsection{训练损失函数}
 在获取到真值数据之后, UNDC 方法的所有子网络均可以进行单独训练. 下式为顶点计算的损失函数：
-\
+\begin{equation}
+\mathcal{L_V}(\theta)=\mathbb{E}_{(\mathcal{I, M_V, V_{gt}})\sim \mathcal{D}}\Sum_{m,n,k}[\Vert \mathcal{M_V} \odot (f_\mathcal{V}(\mathcal{I,G};\theta)) \Vert ^2_2]
+\end{equation}
 
-L_V (θ)=E_((I,M_V,V_gt)~D) ∑_(m,n,k)▒〖[〖∥M_V⊙(f_V (Ι,G; θ)-V_gt)∥〗_2^2 〗
-这里, ⊙ 为Hadamard 乘积. 对于 UNDC, 我们通过二值交叉熵(Binary Cross Entropy)来监督单元格边的符号, 下式为面预测的损失函数:
-L_F (θ)=E_((I,M_F,F_gt)~D) ∑_(m,n,k)▒〖[〖∥M_F⊙(f_F (Ι,G; θ)-F_gt)∥〗_2^2 〗
+这里, $\odot$ 为Hadamard 乘积. 对于 UNDC, 我们通过二值交叉熵(Binary Cross Entropy)来监督单元格边的符号, 下式为面预测的损失函数:
+\begin{equation}
+	\mathcal{L_S}(\theta)=\mathbb{E}_{(\mathcal{I, M_S, S_{gt}})\sim \mathcal{D}}\Sum_{m,n,k}[\mathcal{S_V} \odot \mathrm{BCE}(f_\mathcal{S}(\mathcal{I,G};\theta), \mathcal{S}_{gt})]
+\end{equation}
 
 \subsection{实验环境搭建}
 \subsubsection{环境配置}
 \paragraph{环境要求}
+\begin{table}[h]
+    \centering
+    \newcolumntype{Y}{>{\raggedleft\arraybackslash}X}
+    \begin{tabularx}{\textwidth}{X X X X}
+		操作系统 & Ubuntu 20.04 & \\
+		开发平台 & Docker & \\
+		CPU & Intel(R)Xeon(R) CPU E5-2620 v4 @ 2.10GHz 32GB & 用于数据预处理 \\
+		GPU & RTX 3090 24GB & 用于模型训练以及网格生成 \\
+		编译语言 & Python, C++ & Python 进行模型的训练和测试, C++用于加速网格提取; \\
+		DL 开发平台 & Pytorch & \\
+    \end{tabularx}
+    % \caption{Caption}
+    % \label{tab:my_label}
+\end{table}
+
+
 \paragraph{配置环境}
-\paragraph{项目文件结构}
+
+\begin{enumerate}[i]
+	\item 首先在 Ubuntu 系统上安装 docker;
+	\item 在容器中安装Anaconda, 并创建虚拟环境;
+	\item 安装Pytorch 以及必要的 Python 包；
+	\item Build Cython 文件;
+\end{enumerate}
 
 \subsection{界面分析与使用说明}
+
+
+
+
+
+
+
 \paragraph{模型训练}
+训练单元格棱符号预测模型
+\lstset{language=bash}
+\begin{lstlisting}
+python main.py --train_bool --input_type pointcloud --method undc --epoch 250 --lr_half_life 100 --data_dir ./groundtruth/gt_UNDC --checkpoint_save_frequency 10 --point_num 4096 --grid_size 64 
+\end{lstlisting}
+训练单元格内顶点位置预测模型
+\lstset{language=bash}
+\begin{lstlisting}
+python main.py --train_float --input_type pointcloud --method undc --epoch 250 --lr_half_life 100 --data_dir ./groundtruth/gt_UNDC --checkpoint_save_frequency 10 --point_num 4096 --grid_size 64
+\end{lstlisting}
 \paragraph{模型测试}
+\lstset{language=bash}
+\begin{lstlisting}
+python main.py --test_bool_float --input_type udf --method undc --data_dir ./groundtruth/gt_UNDC
+\end{lstlisting}
 \paragraph{重建结果展示}
 
 \begin{figure}[H]
