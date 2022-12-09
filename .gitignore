@@ -30,3 +30,9 @@
 *.exe
 *.out
 *.app
+
+# Model files
+*.pth
+
+# 3d data files
+*.ply
