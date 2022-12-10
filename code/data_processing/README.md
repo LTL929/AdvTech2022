@@ -24,8 +24,6 @@ The shapes used in our experiments are recorded in *abc_obj_list.txt*.
 
 Run *simplify_obj.py* to normalize the meshes and remove empty folders.
 
-Go to folder *get_groundtruth_NDC*. Then run *get_gt_LOD.py* to get training data for NDC.
-
 Go to folder *get_groundtruth_UNDC*. Then run *get_gt_LOD.py* to get training data for UNDC.
 
 When training on noisy point cloud inputs, it is better to perform data augmentation, as follows.
