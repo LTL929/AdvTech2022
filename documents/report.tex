@@ -16,14 +16,14 @@
     framexleftmargin=2em
 } 
 \begin{document}
-\title{课程论文题目}
-\author{Neural Dual Contouring}
+\title{神经三维对偶等值面提取}
+\author{Chen Zhiqin, Tagliasacchi Andrea, Funkhouser Thomas, Zhang Hao}
 
 \input{Content/titlepage.tex} 
 \maketitle
 
 \begin{abstract}
- 	本文复现的论文提出了一种基于数据驱动的物体表面重建方法, Neural Dual Contouring(NDC). 与传统的 Dual Contouring 方法不同的是, NDC 不需要人为设计复杂的函数来计算物体表面的梯度信息, 而是直接采用神经网络来预测栅格中顶点的位置以及棱的符号. 该方法允许多种类型的数据作为输入, 包括有符号距离场(Signed Distance Field, SDF)、无符号距离场(Unsigned Distance Field, UDF)、二值体素、无向点云. 另外, 该方法可以生成非水密的物体表面. 当输入数据为无向点云时, 该方法重建的面片往往无法区分内外, 本文在该方法的基础上, 利用点云的法向量信息, 对重建的面片方向进行了矫正, 从实验结果来看, 重建的面片方向保持了一致性. 
+    本文复现的论文提出了一种基于数据驱动的物体表面重建方法, Neural Dual Contouring(NDC)\cite{chen2022neural}. 与传统的 Dual Contouring \cite{ju2002dual}方法不同的是, NDC 不需要人为设计复杂的函数来计算物体表面的梯度信息, 而是直接采用神经网络来预测栅格中顶点的位置以及棱的符号. 该方法允许多种类型的数据作为输入, 包括有符号距离场(Signed Distance Field, SDF)、无符号距离场(Unsigned Distance Field, UDF)、二值体素、无向点云. 另外, 该方法可以生成非水密的物体表面. 当输入数据为无向点云时, 该方法重建的面片往往无法区分内外, 本文在该方法的基础上, 利用点云的法向量信息, 对重建的面片方向进行了矫正, 从实验结果来看, 重建的面片方向保持了一致性. 
  	\\\\
  	\textbf{关键词：}表面重建; 点云重建, 机器学习
 \end{abstract}
@@ -32,56 +32,27 @@
 
 随着我国城镇化的发展, 城市规模不断地扩大, 城市化在给人们带来生活便利的同时, 也带来了交通拥堵, 事故频发等问题. 近年来提出的“智慧城市”理念为解决上述问题提供了思路. 城市的三维场景数据为智慧城市提供了完整的三维空间信息. 如何真实、完整、高精度地重建出大规模的三维城市场景成为了“智慧城市”的重要基础. 
 
-目前. 针对规模场景的三维化, 在数字测绘和计算机图形学领域, 出现了许多三维数据获取技术, 包括无人机低空航拍, 激光雷达扫描等. 其中激光雷达扫描的点云数据具有精度高、扫描速度快等特点, 但同时也存在点云分布不均匀, 部分点云残缺等问题. \\
+目前. 针对规模场景的三维化, 在数字测绘和计算机图形学领域, 出现了许多三维数据获取技术, 包括无人机低空航拍, 激光雷达扫描等. 其中激光雷达扫描的点云数据具有精度高、扫描速度快等特点, 但同时也存在点云分布不均匀, 部分点云残缺等问题. 
 本次课程的论文复现工作拟通过对点云进行处理, 采用深度学习的技术, 来重建现实生活中的三维场景, 提高三维场景重建的精度和完整性, 研究真实世界低成本数字化的可行性. 
 
-与基于Marching Cube [1]的重建方法相比, NDC 方法能够重建更加有棱角的网格, 能够更好地保留建筑物的特征, 适合大规模室外建筑物的重建. 
+与基于Marching Cube \cite{lorensen1987marching}的重建方法相比, NDC 方法能够重建更加有棱角的网格, 能够更好地保留建筑物的特征, 适合大规模室外建筑物的重建. 
 
 \section{相关工作}
-此部分对课题内容相关的工作进行简要的分类概括与描述, 二级标题中的内容为示意, 可按照行文内容进行增删与更改, 若二级标题无法对描述内容进行概括, 可自行增加三级标题, 后面内容同样如此, 引文的bib文件统一粘贴到Ref文件夹下的Collection.bib中并采用如下引用方式\cite{Runge}. 
 
 \subsection{基于点云的网格重建}
-从离散的点云中重建出多边形的网格一直是计算机图形学中最经典, 也是研究最深入地问题之一. Berger 等人[3]对以往的网格重建工作按照不同的先验进行了分类, 包括平滑度、可见性、密集采样、基元以及数据先验. 在基于数据先验的方法中, 有一些工作是从数据中学习隐含的先验知识, 包括学习整个物体的先验[4]以及学习 patches 的先验[5]. 本文复现的 NDC 工作属于学习patch先验的方法. 
+从离散的点云中重建出多边形的网格一直是计算机图形学中最经典, 也是研究最深入地问题之一. Berger 等人\cite{berger2017survey}对以往的网格重建工作按照不同的先验进行了分类, 包括平滑度、可见性、密集采样、基元以及数据先验. 在基于数据先验的方法中, 有一些工作是从数据中学习隐含的先验知识, 包括学习整个物体的先验\cite{peng2021shape}以及学习 patches 的先验\cite{Shen:2012}. 本文复现的 NDC 工作属于学习patch先验的方法. 
 
-除此之外, 根据输入点云有无法向量, 可以将表面重建方法分为有向点云表面重建[6]和无向点云表面重建[7]. Peng 等人[8]设计了一种基于卷积的 Occupancy 神经网络, 该网络基于 UNet [9]结构, 可以学习样本数据中的全局特征, 从而可以较好地完成补全重建任务. 另外, 该方法输入的点云不需要法向量, 因此对于输入数据的适用性较高. 本文复现的 UNDC 方法同样可以从无向的输入点云中, 重建出非水密物体的表面. 并且, 通过在训练中对数据进行噪声增强, 使得该方法可以有效地应对采样分布不均匀以及噪声干扰等情况. 
+除此之外, 根据输入点云有无法向量, 可以将表面重建方法分为有向点云表面重建\cite{kazhdan2006poisson}和无向点云表面重建\cite{atzmon2020sal}. Peng 等人\cite{tang2021sa}设计了一种基于卷积的 Occupancy 神经网络, 该网络基于 UNet \cite{ronneberger2015u}结构, 可以学习样本数据中的全局特征, 从而可以较好地完成补全重建任务. 另外, 该方法输入的点云不需要法向量, 因此对于输入数据的适用性较高. 本文复现的 UNDC 方法同样可以从无向的输入点云中, 重建出非水密物体的表面. 并且, 通过在训练中对数据进行噪声增强, 使得该方法可以有效地应对采样分布不均匀以及噪声干扰等情况. 
+
+\begin{figure}[H]
+	\center
+	\includegraphics*[width=15cm]{Figure/DC.jpg}
+	\centering
+	\caption{DC 输入：角点符号、单元格边上交叉点位置以及方向。对于每一个角点符号发生变化的单元格，采用QEM 方法在其内部计算得到一个顶点。然后，对于每一个符号发生变化的边，通过连接其周围的四个顶点，从而生成四边形面}\label{fig:fig1}
+\end{figure}
 
 \subsection{Dual Contouring}
-Ju 等人[10]提出了 Dual Contouring 方法, 该方法可以将有符号距离场$\Phi:\mathbb{R}^3\rightarrow \mathbb{R}$ 映射到多边形的网格$\mathcal{M=(V,F)}$, 如图1所示. 该方法是通过将函数在$\mathcal{G=(X,E)}$中离散化实现的. 首先, 该方法在栅格角点上对距离场$\Phi$进行采样, 得到每个角点的符号值; 然后, 对于两端符号相异的边 $\mathcal{V}^3$, 找到距离场$\Phi$在该边上值为 0 的位置, 即交叉点; 接着, 通过QEM 方法计算这些交叉点的法向; 最后, 根据上述信息生成四边形面. Dual Contouring 可以用以下式子来表示：\\
-% $\begin{array}{*{2}{c}rr}
-% a & b & b & b\\
-% c & d & d & d\\
-% e & f & e & e\\
-% \end{array}$
-
-% \begin{table}[h]
-%     \centering
-%     \newcolumntype{Y}{>{\raggedleft\arraybackslash}X}
-%     \begin{tabularx}{\textwidth}{c c Y Y}
-%         $\mathcal{S}\in \mathbb{B}^{|\mathcal{X}|}$ & $\mathcal{S}=f_{\mathcal{S}}(\Phi,\mathcal{G})$ & (grid signs) & (1)\\
-%         $\mathcal{V}^\mathcal{E}\in\mathbb{R}^{|\mathcal{E}|\times 3}$ & $\mathcal{V}^\mathcal{E}=f_{\mathcal{V}^\mathcal{E}}(\Phi,\mathcal{G})$ & (edge vertices) & (2)\\
-%         $\mathcal{N}^\mathcal{E}\in \mathbb{R}^{|\mathcal{E}|\times 3}$ & $\mathcal{N}^\mathcal{E}= f_{\mathcal{N}^\mathcal{E}}(\Phi,\mathcal{G})$ & (edge normals) & (3)\\
-%     \end{tabularx}
-%     % \caption{Caption}
-%     % \label{tab:my_label}
-% \end{table}
-
-% \begin{table}[!ht]
-% \begin{tabular*}{\hsize}{@{}@{\extracolsep{\fill}}ccrr@{}}
-% $\mathcal{S}\in \mathbb{B}^{|\mathcal{X}|}$, & $\mathcal{S}=f_{\mathcal{S}}(\Phi,\mathcal{G})$, & (grid signs) & (1)\\
-% $\mathcal{V}^\mathcal{E}\in\mathbb{R}^{|\mathcal{E}|\times 3}$, & $\mathcal{V}^\mathcal{E}=f_{\mathcal{V}^\mathcal{E}}(\Phi,\mathcal{G})$, & (edge vertices) & (2)\\
-% $\mathcal{N}^\mathcal{E}\in \mathbb{R}^{|\mathcal{E}|\times 3}$, & $\mathcal{N}^\mathcal{E}= f_{\mathcal{N}^\mathcal{E}}(\Phi,\mathcal{G})$, & (edge normals) & (3)\\
-% \end{tabular*}
-% \end{table}
-
-% 如何更改字体大小, 这字体也太大了吧
-% \resizebox{\linewidth}{!}{
-% \begin{tabular}{ccrr}
-% $\mathcal{S}\in \mathbb{B}^{|\mathcal{X}|}$, & $\mathcal{S}=f_{\mathcal{S}}(\Phi,\mathcal{G})$, & (grid signs) & (1)\\
-% $\mathcal{V}^\mathcal{E}\in\mathbb{R}^{|\mathcal{E}|\times 3}$, & $\mathcal{V}^\mathcal{E}=f_{\mathcal{V}^\mathcal{E}}(\Phi,\mathcal{G})$, & (edge vertices) & (2)\\
-% $\mathcal{N}^\mathcal{E}\in \mathbb{R}^{|\mathcal{E}|\times 3}$, & $\mathcal{N}^\mathcal{E}= f_{\mathcal{N}^\mathcal{E}}(\Phi,\mathcal{G})$, & (edge normals) & (3)\\
-% \end{tabular}
-% }
-
+Ju 等人\cite{ju2002dual}提出了 Dual Contouring 方法, 该方法可以将有符号距离场$\Phi:\mathbb{R}^3\rightarrow \mathbb{R}$ 映射到多边形的网格$\mathcal{M=(V,F)}$, 如图1所示. 该方法是通过将函数在$\mathcal{G=(X,E)}$中离散化实现的. 首先, 该方法在栅格角点上对距离场$\Phi$进行采样, 得到每个角点的符号值; 然后, 对于两端符号相异的边 $\mathcal{V}^3$, 找到距离场$\Phi$在该边上值为 0 的位置, 即交叉点; 接着, 通过QEM 方法计算这些交叉点的法向; 最后, 根据上述信息生成四边形面. Dual Contouring 可以用以下式子来表示：\\
 \begin{align}\label{a}
 \mathcal{S}\in \mathbb{B}^{|\mathcal{X}|},  \mathcal{S}=f_{\mathcal{S}}(\Phi,\mathcal{G}),  (grid \quad signs) \\
 \mathcal{V}^\mathcal{E}\in\mathbb{R}^{|\mathcal{E}|\times 3}, \mathcal{V}^\mathcal{E}=f_{\mathcal{V}^\mathcal{E}}(\Phi,\mathcal{G}), (edge\quad vertices)\\
