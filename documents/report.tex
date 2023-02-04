@@ -80,9 +80,6 @@ Ju 等人\cite{ju2002dual}提出了 Dual Contouring 方法, 该方法可以将�
     f_{\mathcal{F}}:xor(\mathcal{S}_i, \mathcal{S}_j), \quad (i, j)\in \mathcal{E}
 \end{equation}
 
-
-
-
 \section{本文方法}
 
 \subsection{Dual Contouring}
@@ -129,8 +126,6 @@ UNDC 最大的优势在于, 该方法可以重建非水密的物体, 例如大�
 \subsection{后处理}
 如图6所示, 当 UNDC 在处理稀疏或者带有噪声的点云时, 用于预测单元格边是否被交叉的函数可能会出现错误, 导致在输出网格的时候产生一些小空洞, 因此需要采取一些后处理方法来进行弥补. 本文首先检测出周围存在四条边同时自身处于未被交叉状态的单元格边, 接着将其交叉状态修改为正, 然后对该区域进行重新网格化. 
 
-
-
 \section{复现细节}
 
 \subsection{与已有开源代码对比}
@@ -168,7 +163,6 @@ UNDC 最大的优势在于, 该方法可以重建非水密的物体, 例如大�
     % \caption{Caption}
     % \label{tab:my_label}
 \end{table}
-
 
 \paragraph{配置环境}~{}
 
