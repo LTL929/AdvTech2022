@@ -309,19 +309,26 @@ iPSR 虽然可以用于处理无向点云的重建, 但是该方法重建的结�
 
 \subsection{其他场景重建结果}
 
-本文对其他场景同样进行了实验, 实验结果如图\ref{}, \ref{}所示
-% \begin{figure}[H]
-% 	\center
-% 	\includegraphics*[width=16cm]{Figure/experiment.png}
-% 	\centering
-% 	\caption{}\label{fig:fig2}
-% \end{figure}
+本文对其他场景同样进行了实验, 实验结果如图\ref{fig:fig-zhiteng}, \ref{fig:fig-hwl}所示
+\begin{figure}[H]
+	\center
+	\includegraphics*[width=16cm]{Figure/zhiteng_reori_undc.png}
+	\centering
+	\caption{致腾楼重建结果}\label{fig:fig-zhiteng}
+\end{figure}
+
+\begin{figure}[H]
+	\center
+	\includegraphics*[width=16cm]{Figure/HWL_undc.png}
+	\centering
+	\caption{汇文楼重建结果}\label{fig:fig-hwl}
+\end{figure}
 
 
 \section{总结与展望}
 UNDC 方法是一种基于数据驱动的三维等值面提取算法, 它弥补了原始 Dual Contouring 算法对输入要求较为严格（提供梯度方向）的不足, 并能从无符号距离场中重建出三维网格. 
 但是该方法因为无法区分场景的内外信息, 因此重建的网格面片法向往往会出现不一致的情况. 
-本文针对该问题, 利用输入点云的法向信息, 对重建后的网格法向进行了重新定向, 从而保证了网格法向的一致性. 
+本文针对该问题, 利用输入点云的法向信息, 对重建后的网格法向进行了重新定向, 从而保证了网格法向的一致性. 不过, 由于输入的点云存在残缺性，导致重建的结果在部分局部位置仍存在一些空洞. 因此, 残缺区域的补全重建问题, 将是未来的探索和研究方向.
 
 \printbibliography%[heading=bibliography,title=参考文献]
 \end{document}
