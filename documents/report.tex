@@ -57,7 +57,7 @@ Berger 等人\cite{berger2017survey}对以往的网格重建工作按照不同�
 Peng 等人\cite{tang2021sa}设计了一种基于卷积的 Occupancy 神经网络, 该网络基于 UNet \cite{ronneberger2015u}结构, 可以学习样本数据中的全局特征, 从而可以较好地完成补全重建任务. 
 另外, 该方法输入的点云不需要法向量, 因此对于输入数据的适用性较高. 本文复现的 UNDC 方法同样可以从无向的输入点云中, 重建出非水密物体的表面. 
 并且, 通过在训练中对数据进行噪声增强, 使得该方法可以有效地应对点云采样分布不均匀以及噪声干扰等情况. 
-
+\vspace{0.5em} %调整图片与上文的垂直距离
 \begin{figure}[H]
 	\center
 	\includegraphics*[width=15cm]{Figure/DC.jpg}
@@ -73,8 +73,7 @@ Ju 等人\cite{ju2002dual}提出了 Dual Contouring 方法, 该方法可以将�
 首先, 该方法在栅格角点上对距离场$\Phi$进行采样, 得到每个角点的符号值; 
 然后, 对于两端符号相异的边 $\mathcal{V}^3$, 找到距离场$\Phi$在该边上值为 0 的位置, 即交叉点; 
 接着, 通过QEM 方法计算这些交叉点的法向; 
-最后, 根据上述信息生成四边形面. Dual Contouring 可以用以下式子来表示: \\
-
+最后, 根据上述信息生成四边形面. Dual Contouring 可以用以下式子来表示: 
 \begin{align}\label{a}
     \mathcal{S}\in \mathbb{B}^{|\mathcal{X}|},  \mathcal{S}=f_{\mathcal{S}}(\Phi,\mathcal{G}),  (grid \quad signs) \\
     \mathcal{V}^\mathcal{E}\in\mathbb{R}^{|\mathcal{E}|\times 3}, \mathcal{V}^\mathcal{E}=f_{\mathcal{V}^\mathcal{E}}(\Phi,\mathcal{G}), (edge\quad vertices)\\
@@ -85,14 +84,12 @@ Ju 等人\cite{ju2002dual}提出了 Dual Contouring 方法, 该方法可以将�
 其中, $\mathcal{S}$ 为栅格中角点在距离场 $\Phi$ 中的符号值, $f_{mathcal{S}}: sign(\Phi(\mathcal{X}))$; $f_(\mathcal{V}^\mathcal{E})$ 用于计算距离场在栅格边上值为 0 的交叉点位置; 
 $f_\mathcal{N^E}:\nabla \Phi(\mathcal{V^E})$ 为交叉点位置的梯度. 
 而四边形面和对应的顶点可以用下式来表示: 
-
 \begin{align}
     \mathcal{F}\in \mathbb{B}^{|\mathcal{E}|} \quad \mathcal{F}=f_{\mathcal{F}}(\mathcal{S}) \\
     \mathcal{V} \in \mathbb{R}^{|\mathcal{X}| \times 3} \quad \mathcal{V}=f_{\mathcal{V}}(\mathcal{V}^{\mathcal{E}}, \mathcal{N}^{\mathcal{E}})
 \end{align}
 
 另外, 只有当单元格边的符号发生变化时, 才会生成四边形边: 
-
 \begin{equation}
     f_{\mathcal{F}}:xor(\mathcal{S}_i, \mathcal{S}_j), \quad (i, j)\in \mathcal{E}
 \end{equation}
@@ -102,7 +99,6 @@ $f_\mathcal{N^E}:\nabla \Phi(\mathcal{V^E})$ 为交叉点位置的梯度.
 \subsection{Dual Contouring}
 
 本文复现的 NDC 方法, 可以通过简单的方式实现锐利的特征. 该方法基于符号预测来重建物体的面片, 可以用以下公式来表示: 
-
 \begin{equation}
     \mathrm{NDC}(\mathcal{I}) =
 		\begin{cases}
@@ -114,7 +110,6 @@ $f_\mathcal{N^E}:\nabla \Phi(\mathcal{V^E})$ 为交叉点位置的梯度.
 
 其中用于控制是否生成面片的逻辑变量与经典的 Dual Countouring 相同. 在给定输入量 $\mathcal{I}$ 之后, 该方法可以通过神经网络参数 $\theta$ 来预测栅格 $\mathcal{G}$ 中顶点的位置和角点的符号. 
 该方法的另外一个变体为 UNDC, 其中 U 表示 unsigned(无符号). 与 NDC 不同的是, UNDC 直接预测是否生成面片, 而不用去预测角点的符号值: 
-
 \begin{equation}
     \mathrm{UNDC}(\mathcal{I}) =
 		\begin{cases}
@@ -136,7 +131,7 @@ UNDC 最大的优势在于, 该方法可以重建非水密的物体, 例如大�
 
 以点云作为输入对象, 该网络的编码器可以分为两个部分: 点云处理模块、栅格处理模块. 
 前者是基于 PointNet++\cite{qi2017pointnet++} 实现的, 后者是通过三层 3x3x3 的卷积层以及三层 1x1x1 的卷积层实现的. 该方法的网络结构图如图\ref{fig:fig-net}所示. 
-
+\vspace{0.5em} %调整图片与上文的垂直距离
 \begin{figure}[H]
 	\center
 	\includegraphics*[width=16cm]{Figure/experiment.png}
@@ -150,7 +145,7 @@ UNDC 最大的优势在于, 该方法可以重建非水密的物体, 例如大�
 首先, 对大场景进行区域分割, 得到若干个小区域; 
 然后, 针对每一个小区域, 使用UNDC 的方法对其进行重建. 
 以L7建筑为例, 其区域划分方式如图\ref{fig:fig-seg}所示. 由于 L7 建筑相对于坐标系呈倾斜分布, 因此, 切分的区域往往与建筑物自身不平行. 
-
+\vspace{0.5em} %调整图片与上文的垂直距离
 \begin{figure}[H]
 	\center
 	\includegraphics*[width=16cm]{Figure/UNDC-shape-recon.png}
@@ -177,7 +172,7 @@ UNDC 最大的优势在于, 该方法可以重建非水密的物体, 例如大�
 反映到真实的三维场景中即为面片明暗相间交替出现. 
 
 为了对网格的法向量进行重新定向, 我们根据激光雷达在点云采集过程中得到的法向量, 利用 k-d tree 方法对所有面片的法向量进行了矫正, 重定向结果见\ref{reorientation}节. 
-
+\vspace{-0.8cm} %调整图片与上文的垂直距离
 \begin{figure}[H]
 	\center
 	\includegraphics*[width=16cm]{Figure/post-process.png}
@@ -205,13 +200,11 @@ UNDC 最大的优势在于, 该方法可以重建非水密的物体, 例如大�
 
 在获取到真值数据之后, UNDC 方法的所有子网络均可以进行单独训练. 
 下式为顶点计算的损失函数: 
-
 \begin{equation}
     \mathcal{L_V}(\theta)=\mathbb{E}_{(\mathcal{I, M_V, V}_{gt})\sim \mathcal{D}}\sum _{m,n,k} [ \Vert \mathcal{M_V} \odot (f_{\mathcal{V}}(\mathcal{I,G};\theta)) \Vert ^2_2 ]
 \end{equation}
 
 这里, $\odot$ 为Hadamard 乘积. 对于 UNDC, 我们通过二值交叉熵(Binary Cross Entropy)来监督单元格边的符号, 下式为面预测的损失函数:
-
 \begin{equation}
     \mathcal{L_S}(\theta)=\mathbb{E}_{(\mathcal{I, M_S, S}_{gt})\sim \mathcal{D}}\sum_{m,n,k} \lbrack \mathcal{S_V} \odot \mathrm{BCE}(f_\mathcal{S}(\mathcal{I,G};\theta), \mathcal{S}_{gt}) \rbrack
 \end{equation}
@@ -219,24 +212,32 @@ UNDC 最大的优势在于, 该方法可以重建非水密的物体, 例如大�
 \subsection{实验环境搭建}
 
 \subsubsection{环境配置}
-
+\vspace{0.5em} %调整图片与上文的垂直距离
 \paragraph{环境要求}~{}
 
+% \linespread{1.5}
 \begin{table}[h]
+\renewcommand\arraystretch{1.5}
     \centering
     \newcolumntype{Y}{>{\raggedleft\arraybackslash}X}
     \begin{tabularx}{\textwidth}{X X X X}
+        \hline
 		操作系统 	& Ubuntu 20.04 	& \\
+		\hline
 		开发平台 	& Docker			& \\
+		\hline
 		CPU 		& Intel(R)Xeon(R) CPU E5-2620 v4 @ 2.10GHz 32GB & 用于数据预处理 \\
+		\hline
 		GPU 		& RTX 3090 24GB		& 用于模型训练以及网格生成 \\
+		\hline
 		编译语言 	& Python, C++ 		& Python 进行模型的训练和测试, C++用于加速网格提取; \\
+		\hline
 		DL 开发平台 & Pytorch 		& \\
+		\hline
     \end{tabularx}
     % \caption{Caption}
     % \label{tab:my_label}
 \end{table}
-
 
 \paragraph{配置环境}~{}
 
