@@ -120,6 +120,7 @@ $f_\mathcal{N^E}:\nabla \Phi(\mathcal{V^E})$ 为交叉点位置的梯度.
 
 UNDC 最大的优势在于, 该方法可以重建非水密的物体, 例如大规模的建筑场景. 同时, 该方法还可以以薄片的形式重建出网格面. 
 
+\subsection{编码器}
 \begin{figure}[H]
 	\center
 	\includegraphics*[width=15cm]{Figure/overview.png}
@@ -127,10 +128,10 @@ UNDC 最大的优势在于, 该方法可以重建非水密的物体, 例如大�
 	\caption{NDC 方法网络结构}\label{fig:fig-net}
 \end{figure}
 
-\subsection{编码器}
-
 以点云作为输入对象, 该网络的编码器可以分为两个部分: 点云处理模块、栅格处理模块. 
 前者是基于 PointNet++\cite{qi2017pointnet++} 实现的, 后者是通过三层 3x3x3 的卷积层以及三层 1x1x1 的卷积层实现的. 该方法的网络结构图如图\ref{fig:fig-net}所示. 
+
+\subsection{大场景重建方法}
 \vspace{0.5em} %调整图片与上文的垂直距离
 \begin{figure}[H]
 	\center
@@ -138,13 +139,12 @@ UNDC 最大的优势在于, 该方法可以重建非水密的物体, 例如大�
 	\centering
 	\caption{场景空间划分示意图}\label{fig:fig-seg}
 \end{figure}
-
-\subsection{大场景重建方法}
-
 对于大规模的场景, 本文采用的重建方法是: 
 首先, 对大场景进行区域分割, 得到若干个小区域; 
 然后, 针对每一个小区域, 使用UNDC 的方法对其进行重建. 
 以L7建筑为例, 其区域划分方式如图\ref{fig:fig-seg}所示. 由于 L7 建筑相对于坐标系呈倾斜分布, 因此, 切分的区域往往与建筑物自身不平行. 
+
+\subsection{网格法向重定向}
 \vspace{0.5em} %调整图片与上文的垂直距离
 \begin{figure}[H]
 	\center
@@ -152,9 +152,6 @@ UNDC 最大的优势在于, 该方法可以重建非水密的物体, 例如大�
 	\centering
 	\caption{UNDC 方法重建结果}\label{fig:fig-shape-recon}
 \end{figure}
-
-\subsection{网格法向重定向}
-
 如图\ref{fig:fig-shape-recon}所示, 由于输入的点云为无向点云, 因此 UNDC 方法重建的网格无法区分物体的内外, 导致面片的法向量出现不一致的情况. 
 
 \begin{figure}[H]
@@ -172,15 +169,16 @@ UNDC 最大的优势在于, 该方法可以重建非水密的物体, 例如大�
 反映到真实的三维场景中即为面片明暗相间交替出现. 
 
 为了对网格的法向量进行重新定向, 我们根据激光雷达在点云采集过程中得到的法向量, 利用 k-d tree 方法对所有面片的法向量进行了矫正, 重定向结果见\ref{reorientation}节. 
-\vspace{-0.8cm} %调整图片与上文的垂直距离
+
+\subsection{后处理}
+
+% \vspace{-0.8cm} %调整图片与上文的垂直距离
 \begin{figure}[H]
 	\center
 	\includegraphics*[width=16cm]{Figure/post-process.png}
 	\centering
 	\caption{UNDC 方法后处理输出}\label{fig:fig-post}
 \end{figure}
-
-\subsection{后处理}
 
 如图\ref{fig:fig-post}所示, 当 UNDC 在处理稀疏或者带有噪声的点云时, 用于预测单元格边是否被交叉的函数可能会出现错误, 导致在输出网格的时候产生一些小空洞, 因此需要采取一些后处理方法来进行弥补. 
 本文首先检测出周围存在四条边同时自身处于未被交叉状态的单元格边, 接着将其交叉状态修改为正, 然后对该区域进行重新网格化. 
@@ -285,6 +283,7 @@ UNDC 最大的优势在于, 该方法可以重建非水密的物体, 例如大�
 本文在 ABC 数据集上对UNDC 网络进行了训练. ABC 数据集中包含了丰富的CAD模型, 并且这些模型具有锐利的边缘特征以及光滑的曲面特征. 
 本文将数据集中分为训练集(80\%, 4280个样本)和测试集(20\%, 1071个样本), 并以L7楼点云数据为样本进行了测试. 
 
+\subsection{基于点云的表面重建}
 \begin{figure}[H]
 	\center
 	\includegraphics*[width=16cm]{Figure/compare-recon.png}
@@ -292,19 +291,17 @@ UNDC 最大的优势在于, 该方法可以重建非水密的物体, 例如大�
 	\caption{不同方法重建结果对比}\label{fig:fig-compare}
 \end{figure}
 
-\subsection{基于点云的表面重建}
 本文与另外两种大场景点云重建方法进行了对比, 包括迭代泊松重建\cite{hou2022iterative}、ConvONet\cite{tang2021sa}. 本文以 L7 楼点云作为输入数据, 对比结果如图\ref{fig:fig-compare}所示. 
 
 iPSR 虽然可以用于处理无向点云的重建, 但是该方法重建的结果会出现许多的凸包; ConvONet 重建的结果同样出现了许多不必要的凸包; 而UNDC 重建的结果结构清晰, 无冗余的凸包情况出现. 
 
+\subsection{网格法向重定向} \label{reorientation}
 \begin{figure}[H]
 	\center
 	\includegraphics*[width=16cm]{Figure/result.png}
 	\centering
-	\caption{实验结果示意}\label{fig:fig-result}
+	\caption{网格重定向结果}\label{fig:fig-result}
 \end{figure}
-
-\subsection{网格法向重定向} \label{reorientation}
 由于 UNDC 重建的网格无法区分内外, 因此本文利用激光雷达在扫描过程中获得的点云法向量对 UNDC 重建的结果进行了重定向, 结果如图所示. 从图\ref{fig:fig-result}中可以看出, 重定向之后的网格法向保持了连续性. 
 
 \subsection{其他场景重建结果}
